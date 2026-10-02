@@ -1,0 +1,1276 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoNetPay — Dashboard</title>
+    <style>
+        /* =====================================================================
+           RESET & BASE
+        ===================================================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary:    #0a0a0a;
+            --bg-secondary:  #111111;
+            --bg-card:       #151515;
+            --bg-input:      #0e0e0e;
+            --border:        #2a2a2a;
+            --border-accent: #3a3a3a;
+            --text-primary:  #e8e8e8;
+            --text-secondary:#9a9a9a;
+            --text-muted:    #5a5a5a;
+            --accent-green:  #2d7a3a;
+            --accent-green-bright: #4caf6a;
+            --accent-red:    #8b2020;
+            --accent-red-bright: #e05252;
+            --accent-blue:   #1e4a7a;
+            --accent-blue-bright: #5b9bd5;
+            --accent-amber:  #8a6020;
+            --accent-amber-bright: #d4a843;
+            --status-settled:#4caf6a;
+            --status-rejected:#e05252;
+            --status-dup:    #d4a843;
+            --status-invalid:#e05252;
+            --font-main:     'Times New Roman', Times, serif;
+            --font-mono:     'Courier New', Courier, monospace;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: var(--font-main);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================================
+           LAYOUT — FULL APP SHELL
+        ===================================================================== */
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ---- TOP HEADER BAR ---- */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 52px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .brand-name {
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+            font-style: italic;
+        }
+
+        .brand-tag {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-style: normal;
+        }
+
+        /* ---- NAV TABS ---- */
+        .header-nav {
+            display: flex;
+            gap: 2px;
+        }
+
+        .nav-tab {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-family: var(--font-main);
+            font-size: 13px;
+            padding: 6px 18px;
+            cursor: pointer;
+            border-radius: 3px;
+            letter-spacing: 0.3px;
+            transition: color 0.15s, background 0.15s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-tab:hover {
+            color: var(--text-primary);
+            background: rgba(255,255,255,0.04);
+        }
+
+        .nav-tab.active {
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--accent-blue-bright);
+            background: rgba(91, 155, 213, 0.06);
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--status-settled);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* =====================================================================
+           PAGE CONTAINERS
+        ===================================================================== */
+        .page {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
+        /* =====================================================================
+           PAGE 1 — DASHBOARD (Left panel + Right main)
+           Ratio 1 : 3
+        ===================================================================== */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* ---- LEFT PANEL ---- */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .left-panel-section {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .left-panel-section + .left-panel-section {
+            border-top: 1px solid var(--border);
+        }
+
+        .panel-heading {
+            padding: 12px 16px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+        }
+
+        .panel-heading span {
+            color: var(--accent-blue-bright);
+            font-size: 9px;
+            letter-spacing: 0;
+            margin-left: 6px;
+            font-weight: normal;
+            text-transform: none;
+        }
+
+        /* Transaction ledger — left panel mini table */
+        .ledger-scroll {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .ledger-scroll::-webkit-scrollbar { width: 4px; }
+        .ledger-scroll::-webkit-scrollbar-track { background: transparent; }
+        .ledger-scroll::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
+
+        .ledger-row {
+            display: flex;
+            flex-direction: column;
+            padding: 9px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            transition: background 0.1s;
+        }
+
+        .ledger-row:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .ledger-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+
+        .ledger-parties {
+            color: var(--text-secondary);
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .ledger-amount {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-primary);
+            font-weight: bold;
+        }
+
+        .ledger-status {
+            font-size: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .ledger-time {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .status-SETTLED   { color: var(--status-settled); }
+        .status-REJECTED  { color: var(--status-rejected); }
+        .status-DUPLICATE_DROPPED { color: var(--status-dup); }
+        .status-INVALID   { color: var(--status-invalid); }
+
+        /* Activity log — left panel */
+        .activity-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #6abf7a;
+            background: #080808;
+            white-space: pre-wrap;
+            word-break: break-all;
+            min-height: 0;
+        }
+
+        .activity-log::-webkit-scrollbar { width: 4px; }
+        .activity-log::-webkit-scrollbar-track { background: transparent; }
+        .activity-log::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
+
+        .log-line {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .log-time {
+            color: var(--text-muted);
+        }
+
+        /* ---- RIGHT MAIN AREA (page 1) ---- */
+        .right-main {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+
+        /* Send payment form strip */
+        .send-strip {
+            flex-shrink: 0;
+            padding: 18px 28px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .send-strip-title {
+            font-size: 11px;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            font-weight: bold;
+        }
+
+        .send-form-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        select, input[type="number"], input[type="text"], input[type="password"] {
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border-accent);
+            border-radius: 3px;
+            padding: 7px 10px;
+            font-family: var(--font-main);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent-blue-bright);
+        }
+
+        .arrow-sep {
+            color: var(--text-muted);
+            font-size: 18px;
+            margin-top: 14px;
+            flex-shrink: 0;
+        }
+
+        /* ---- MAIN CONTENT AREA ---- */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        .main-content::-webkit-scrollbar { width: 5px; }
+        .main-content::-webkit-scrollbar-track { background: transparent; }
+        .main-content::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
+
+        /* Full ledger table in main area */
+        .section-heading {
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 7px 10px;
+            color: var(--text-muted);
+            font-size: 10px;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .data-table td {
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+
+        .data-table tr:hover td {
+            background: rgba(255,255,255,0.015);
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+        }
+
+        .amount-cell {
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+            font-weight: bold;
+        }
+
+        /* =====================================================================
+           BUTTONS
+        ===================================================================== */
+        .btn {
+            font-family: var(--font-main);
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            padding: 8px 18px;
+            border-radius: 3px;
+            letter-spacing: 0.3px;
+            transition: background 0.15s, opacity 0.15s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: var(--accent-green);
+            color: #e8e8e8;
+            border: 1px solid #3a8a4a;
+        }
+
+        .btn-primary:hover {
+            background: #3a8a4a;
+        }
+
+        .btn-secondary {
+            background: var(--accent-blue);
+            color: #d0d8e8;
+            border: 1px solid #2a5a8a;
+        }
+
+        .btn-secondary:hover {
+            background: #2a5a8a;
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            color: #f0d0d0;
+            border: 1px solid #a03030;
+        }
+
+        .btn-danger:hover {
+            background: #a03030;
+        }
+
+        /* =====================================================================
+           PAGE 2 — DEMO FLOW PAGE
+        ===================================================================== */
+        .demo-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .demo-body {
+            flex: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 0;
+            min-height: 0;
+        }
+
+        .demo-body::-webkit-scrollbar { width: 5px; }
+        .demo-body::-webkit-scrollbar-track { background: transparent; }
+        .demo-body::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 2px; }
+
+        .demo-panel {
+            padding: 24px 28px;
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .demo-panel:nth-child(2n) {
+            border-right: none;
+        }
+
+        .demo-panel-title {
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 18px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Demo Flow Steps */
+        .steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            background: var(--accent-blue);
+            color: var(--accent-blue-bright);
+            border: 1px solid #2a5a8a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            font-family: var(--font-mono);
+            border-radius: 2px;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-label {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .step-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .step-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* Mesh Devices grid */
+        .devices-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .device-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            transition: border-color 0.2s;
+        }
+
+        .device-card.bridge-device {
+            border-color: #2a5a2a;
+            background: #0a140a;
+        }
+
+        .device-card.offline-device {
+            opacity: 0.85;
+        }
+
+        .device-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .device-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .device-indicator.online  { background: var(--status-settled); }
+        .device-indicator.offline { background: var(--text-muted); }
+
+        .device-id {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+
+        .device-badge {
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            padding: 2px 7px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        .badge-4g {
+            background: rgba(44, 122, 58, 0.3);
+            color: var(--accent-green-bright);
+            border: 1px solid rgba(44, 122, 58, 0.5);
+        }
+
+        .badge-offline {
+            background: rgba(90, 90, 90, 0.2);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .device-packets {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .packet-count {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .packet-chip {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            background: rgba(91, 155, 213, 0.1);
+            border: 1px solid rgba(91, 155, 213, 0.25);
+            color: var(--accent-blue-bright);
+            padding: 1px 5px;
+            border-radius: 2px;
+        }
+
+        /* Account balances */
+        .accounts-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .account-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+        }
+
+        .account-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .account-holder {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .account-vpa {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .account-balance {
+            font-family: var(--font-mono);
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--accent-green-bright);
+        }
+
+        /* Cache info bar */
+        .cache-bar {
+            padding: 6px 14px;
+            background: rgba(30, 74, 122, 0.15);
+            border: 1px solid rgba(30, 74, 122, 0.35);
+            border-radius: 3px;
+            font-size: 11px;
+            color: var(--accent-blue-bright);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            font-family: var(--font-mono);
+        }
+
+        /* Outcome result display */
+        .result-block {
+            margin-top: 12px;
+            padding: 12px;
+            background: #050505;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #6abf7a;
+            white-space: pre-wrap;
+            max-height: 100px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .result-block.visible {
+            display: block;
+        }
+
+        /* Divider */
+        hr.section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 0;
+        }
+
+        /* Empty state */
+        .empty-state {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        /* Tooltip-like small text */
+        .hint-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+            line-height: 1.5;
+        }
+
+        /* Scrollbar global */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-accent) transparent;
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+
+    <!-- ================================================================
+         HEADER
+    ================================================================ -->
+    <header class="header">
+        <div class="header-brand">
+            <span class="brand-name">NoNetPay</span>
+            <span class="brand-tag">Offline Mesh Settlement</span>
+        </div>
+
+        <nav class="header-nav">
+            <button class="nav-tab active" onclick="switchPage('dashboard')">Dashboard</button>
+            <button class="nav-tab" onclick="switchPage('demo')">Demo Flow</button>
+        </nav>
+
+        <div class="header-status">
+            <div class="status-dot"></div>
+            <span>Backend Online</span>
+        </div>
+    </header>
+
+    <!-- ================================================================
+         PAGE 1 — DASHBOARD
+    ================================================================ -->
+    <div class="page active" id="page-dashboard">
+        <div class="dashboard-layout">
+
+            <!-- LEFT PANEL -->
+            <div class="left-panel">
+
+                <!-- Transaction Ledger -->
+                <div class="left-panel-section">
+                    <div class="panel-heading">
+                        Transaction Ledger
+                        <span id="ledger-count">0 records</span>
+                    </div>
+                    <div class="ledger-scroll" id="left-ledger">
+                        <div class="empty-state">No transactions yet</div>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="left-panel-section">
+                    <div class="panel-heading">
+                        Activity Log
+                        <span>Live</span>
+                    </div>
+                    <div class="activity-log" id="log"></div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT MAIN -->
+            <div class="right-main">
+
+                <!-- Send Payment Strip -->
+                <div class="send-strip">
+                    <div class="send-strip-title">Initiate Payment</div>
+                    <div class="send-form-row">
+                        <div class="form-group">
+                            <span class="form-label">From</span>
+                            <select id="senderVpa" style="min-width:130px">
+                                <option>alice@demo</option>
+                                <option>bob@demo</option>
+                                <option>carol@demo</option>
+                            </select>
+                        </div>
+
+                        <div class="arrow-sep">&#x2192;</div>
+
+                        <div class="form-group">
+                            <span class="form-label">To</span>
+                            <select id="receiverVpa" style="min-width:130px">
+                                <option>bob@demo</option>
+                                <option>carol@demo</option>
+                                <option>alice@demo</option>
+                                <option>dave@demo</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <span class="form-label">Amount (INR)</span>
+                            <input type="number" id="amount" value="500" style="width:100px">
+                        </div>
+
+                        <div class="form-group">
+                            <span class="form-label">PIN</span>
+                            <input type="password" id="pin" value="1234" style="width:80px" maxlength="4">
+                        </div>
+
+                        <div class="form-group" style="justify-content:flex-end">
+                            <span class="form-label">&nbsp;</span>
+                            <button class="btn btn-primary" onclick="sendPacket()">Inject into Mesh</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main scrollable content -->
+                <div class="main-content">
+
+                    <!-- Full Ledger Table -->
+                    <div>
+                        <div class="section-heading">Full Transaction Ledger</div>
+                        <table class="data-table" id="tx-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Bridge Node</th>
+                                    <th>Hops</th>
+                                    <th>Settled At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tx-tbody">
+                                <tr><td colspan="8" class="empty-state">No transactions recorded</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+            </div><!-- /right-main -->
+        </div>
+    </div><!-- /page-dashboard -->
+
+    <!-- ================================================================
+         PAGE 2 — DEMO FLOW
+    ================================================================ -->
+    <div class="page" id="page-demo">
+        <div class="demo-layout">
+
+            <div class="demo-body">
+
+                <!-- PANEL 1 — Demo Steps -->
+                <div class="demo-panel">
+                    <div class="demo-panel-title">Demo Sequence</div>
+                    <div class="steps-list">
+
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-label">Compose and Encrypt Payment</div>
+                                <div class="step-desc">
+                                    The server simulates a sender phone. It encrypts a payment instruction
+                                    using hybrid RSA-OAEP + AES-256-GCM and injects the packet into the mesh
+                                    at the sender's virtual device with a TTL of 5.
+                                </div>
+                                <div class="step-actions">
+                                    <span class="hint-text">Use the Initiate Payment form on the Dashboard.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-label">Run Gossip Round</div>
+                                <div class="step-desc">
+                                    Each device broadcasts held packets to all other in-range devices.
+                                    TTL decrements per hop. After one round, all devices hold the packet.
+                                    Run multiple rounds to reduce TTL further.
+                                </div>
+                                <div class="step-actions">
+                                    <button class="btn btn-secondary" onclick="gossip()">Run Gossip Round</button>
+                                </div>
+                                <div class="result-block" id="gossip-result"></div>
+                            </div>
+                        </div>
+
+                        <div class="step-item">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <div class="step-label">Bridge Nodes Upload to Backend</div>
+                                <div class="step-desc">
+                                    The bridge node (phone-bridge) simulates walking outside and gaining
+                                    4G connectivity. It POSTs all held packets to the backend simultaneously,
+                                    exercising the concurrent idempotency gate.
+                                </div>
+                                <div class="step-actions">
+                                    <button class="btn btn-secondary" onclick="flushBridges()">Flush Bridge Uploads</button>
+                                </div>
+                                <div class="result-block" id="flush-result"></div>
+                            </div>
+                        </div>
+
+                        <div class="step-item">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <div class="step-label">Reset Mesh and Cache</div>
+                                <div class="step-desc">
+                                    Clears all held packets from virtual devices and resets the
+                                    idempotency cache. Account balances are preserved.
+                                </div>
+                                <div class="step-actions">
+                                    <button class="btn btn-danger" onclick="resetMesh()">Reset Mesh and Cache</button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- PANEL 2 — Mesh Devices -->
+                <div class="demo-panel">
+                    <div class="demo-panel-title">Mesh Devices <span id="cache-info-demo" style="font-size:10px; color:var(--accent-blue-bright); margin-left:10px; font-family:var(--font-mono); letter-spacing:0; text-transform:none;"></span></div>
+                    <div class="devices-grid" id="devices-demo">
+                        <div class="empty-state">Loading devices...</div>
+                    </div>
+                </div>
+
+                <!-- PANEL 3 — Account Balances -->
+                <div class="demo-panel" style="border-bottom:none;">
+                    <div class="demo-panel-title">Account Balances</div>
+                    <div class="accounts-grid" id="accounts-demo">
+                        <div class="empty-state">Loading accounts...</div>
+                    </div>
+                </div>
+
+                <!-- PANEL 4 — Encryption Details -->
+                <div class="demo-panel" style="border-right:none; border-bottom:none;">
+                    <div class="demo-panel-title">Encryption Scheme</div>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+
+                        <div style="padding:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:3px;">
+                            <div style="font-size:11px; font-weight:bold; color:var(--text-muted); margin-bottom:6px; letter-spacing:0.8px;">OUTER LAYER</div>
+                            <div style="font-family:var(--font-mono); font-size:12px; color:var(--accent-blue-bright);">RSA-2048 / OAEP-SHA256</div>
+                            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.6;">
+                                Encrypts the per-packet AES session key. Only the server holds the private key.
+                                Intermediaries cannot read or tamper with the payload.
+                            </div>
+                        </div>
+
+                        <div style="padding:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:3px;">
+                            <div style="font-size:11px; font-weight:bold; color:var(--text-muted); margin-bottom:6px; letter-spacing:0.8px;">INNER LAYER</div>
+                            <div style="font-family:var(--font-mono); font-size:12px; color:var(--accent-amber-bright);">AES-256-GCM</div>
+                            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.6;">
+                                Authenticated encryption. Any single-bit tampering with ciphertext causes
+                                decryption to throw. The 16-byte GCM tag serves as a tamper seal.
+                            </div>
+                        </div>
+
+                        <div style="padding:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:3px;">
+                            <div style="font-size:11px; font-weight:bold; color:var(--text-muted); margin-bottom:6px; letter-spacing:0.8px;">IDEMPOTENCY KEY</div>
+                            <div style="font-family:var(--font-mono); font-size:12px; color:var(--accent-green-bright);">SHA-256(ciphertext)</div>
+                            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.6;">
+                                Hashed before decryption. ConcurrentHashMap.putIfAbsent acts as a JVM-local
+                                Redis SETNX. DB unique index provides defense-in-depth fallback.
+                            </div>
+                        </div>
+
+                        <div style="padding:8px 12px; background:rgba(30,74,122,0.1); border:1px solid rgba(30,74,122,0.3); border-radius:3px;">
+                            <div style="font-size:11px; color:var(--accent-blue-bright); font-family:var(--font-mono);">
+                                Wire format: [256B RSA-enc AES key][12B IV][AES ciphertext + 16B GCM tag]
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div><!-- /demo-body -->
+        </div><!-- /demo-layout -->
+    </div><!-- /page-demo -->
+
+</div><!-- /app-shell -->
+
+<script>
+/* =========================================================================
+   PAGE NAVIGATION
+========================================================================= */
+function switchPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    event.target.classList.add('active');
+    refresh();
+}
+
+/* =========================================================================
+   ACTIVITY LOG
+========================================================================= */
+function addLog(msg) {
+    const el = document.getElementById('log');
+    const time = new Date().toLocaleTimeString('en-IN', { hour12: false });
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = '<span class="log-time">[' + time + ']</span> ' + escHtml(msg);
+    el.insertBefore(line, el.firstChild);
+}
+
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/* =========================================================================
+   RENDER HELPERS
+========================================================================= */
+function renderLeftLedger(txs) {
+    const container = document.getElementById('left-ledger');
+    document.getElementById('ledger-count').textContent = txs.length + ' record' + (txs.length !== 1 ? 's' : '');
+    if (txs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No transactions yet</div>';
+        return;
+    }
+    container.innerHTML = txs.map(t => {
+        const time = new Date(t.settledAt).toLocaleTimeString('en-IN', { hour12: false });
+        return `<div class="ledger-row">
+            <div class="ledger-row-top">
+                <span class="ledger-parties">${t.senderVpa.split('@')[0]} &rarr; ${t.receiverVpa.split('@')[0]}</span>
+                <span class="ledger-amount">&#x20B9;${parseFloat(t.amount).toFixed(2)}</span>
+            </div>
+            <div class="ledger-row-top">
+                <span class="ledger-status status-${t.status}">${t.status}</span>
+                <span class="ledger-time">${time}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderFullLedger(txs) {
+    const tbody = document.getElementById('tx-tbody');
+    if (txs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No transactions recorded</td></tr>';
+        return;
+    }
+    tbody.innerHTML = txs.map(t => {
+        const time = new Date(t.settledAt).toLocaleTimeString('en-IN', { hour12: false });
+        return `<tr>
+            <td class="mono" style="color:var(--text-muted)">${t.id}</td>
+            <td>${t.senderVpa}</td>
+            <td>${t.receiverVpa}</td>
+            <td class="amount-cell">&#x20B9;${parseFloat(t.amount).toFixed(2)}</td>
+            <td class="status-${t.status}">${t.status}</td>
+            <td class="mono" style="font-size:11px;color:var(--text-muted)">${t.bridgeNodeId}</td>
+            <td class="mono" style="text-align:center">${t.hopCount}</td>
+            <td class="mono" style="font-size:11px;color:var(--text-muted)">${time}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderDevices(meshState) {
+    const container = document.getElementById('devices-demo');
+    const cacheInfo = document.getElementById('cache-info-demo');
+    cacheInfo.textContent = 'idempotency cache: ' + meshState.idempotencyCacheSize;
+
+    if (!meshState.devices || meshState.devices.length === 0) {
+        container.innerHTML = '<div class="empty-state">No devices</div>';
+        return;
+    }
+    container.innerHTML = meshState.devices.map(d => {
+        const chips = d.packetIds.map(id => `<span class="packet-chip">${id}</span>`).join(' ');
+        return `<div class="device-card ${d.hasInternet ? 'bridge-device' : 'offline-device'}">
+            <div class="device-left">
+                <div class="device-indicator ${d.hasInternet ? 'online' : 'offline'}"></div>
+                <div>
+                    <div class="device-id">${d.deviceId}</div>
+                    <div style="margin-top:4px">${chips || '<span style="color:var(--text-muted);font-size:10px">no packets</span>'}</div>
+                </div>
+            </div>
+            <div class="device-packets">
+                <span class="packet-count">${d.packetCount} pkt</span>
+                <span class="device-badge ${d.hasInternet ? 'badge-4g' : 'badge-offline'}">${d.hasInternet ? '4G' : 'OFFLINE'}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderAccounts(accs) {
+    const container = document.getElementById('accounts-demo');
+    if (!accs || accs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No accounts</div>';
+        return;
+    }
+    container.innerHTML = accs.map(a => `
+        <div class="account-card">
+            <div class="account-info">
+                <div class="account-holder">${a.holderName}</div>
+                <div class="account-vpa">${a.vpa}</div>
+            </div>
+            <div class="account-balance">&#x20B9;${parseFloat(a.balance).toFixed(2)}</div>
+        </div>
+    `).join('');
+}
+
+/* =========================================================================
+   DATA FETCH
+========================================================================= */
+async function refresh() {
+    try {
+        const [meshState, accs, txs] = await Promise.all([
+            fetch('/api/mesh/state').then(r => r.json()),
+            fetch('/api/accounts').then(r => r.json()),
+            fetch('/api/transactions').then(r => r.json())
+        ]);
+
+        renderLeftLedger(txs);
+        renderFullLedger(txs);
+        renderDevices(meshState);
+        renderAccounts(accs);
+    } catch (e) {
+        addLog('Refresh error: ' + e.message);
+    }
+}
+
+/* =========================================================================
+   ACTIONS
+========================================================================= */
+async function sendPacket() {
+    const body = {
+        senderVpa:   document.getElementById('senderVpa').value,
+        receiverVpa: document.getElementById('receiverVpa').value,
+        amount:      parseFloat(document.getElementById('amount').value),
+        pin:         document.getElementById('pin').value,
+        ttl:         5,
+        startDevice: 'phone-alice'
+    };
+    try {
+        const r = await fetch('/api/demo/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        }).then(r => r.json());
+        addLog('Packet ' + r.packetId.substring(0,8) + '... encrypted and injected at ' + r.injectedAt + ' (TTL ' + r.ttl + ')');
+        addLog('Ciphertext preview: ' + r.ciphertextPreview);
+        refresh();
+    } catch (e) {
+        addLog('Send error: ' + e.message);
+    }
+}
+
+async function gossip() {
+    try {
+        const r = await fetch('/api/mesh/gossip', {method: 'POST'}).then(r => r.json());
+        addLog('Gossip round: ' + r.transfers + ' transfer(s) — ' + JSON.stringify(r.deviceCounts));
+        const el = document.getElementById('gossip-result');
+        if (el) {
+            el.textContent = 'Transfers: ' + r.transfers + '\nDevice packet counts: ' + JSON.stringify(r.deviceCounts, null, 2);
+            el.classList.add('visible');
+        }
+        refresh();
+    } catch (e) {
+        addLog('Gossip error: ' + e.message);
+    }
+}
+
+async function flushBridges() {
+    try {
+        const r = await fetch('/api/mesh/flush', {method: 'POST'}).then(r => r.json());
+        addLog('Bridge flush: ' + r.uploadsAttempted + ' upload(s) attempted');
+        r.results.forEach(res => {
+            addLog('  ' + res.bridgeNode + ' / packet ' + res.packetId + ' -> ' + res.outcome +
+                (res.reason ? ' (' + res.reason + ')' : ''));
+        });
+        const el = document.getElementById('flush-result');
+        if (el) {
+            el.textContent = JSON.stringify(r, null, 2);
+            el.classList.add('visible');
+        }
+        refresh();
+    } catch (e) {
+        addLog('Flush error: ' + e.message);
+    }
+}
+
+async function resetMesh() {
+    try {
+        await fetch('/api/mesh/reset', {method: 'POST'});
+        addLog('Mesh and idempotency cache cleared');
+        const g = document.getElementById('gossip-result');
+        const f = document.getElementById('flush-result');
+        if (g) { g.textContent = ''; g.classList.remove('visible'); }
+        if (f) { f.textContent = ''; f.classList.remove('visible'); }
+        refresh();
+    } catch (e) {
+        addLog('Reset error: ' + e.message);
+    }
+}
+
+/* =========================================================================
+   INIT
+========================================================================= */
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
+

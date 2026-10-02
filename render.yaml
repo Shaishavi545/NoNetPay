@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: nonetpay-dashboard
+    env: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
